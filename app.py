@@ -20,6 +20,14 @@ def is_option_symbol(symbol):
     pattern = r'^[A-Z]+\s+\d{2}/\d{2}/\d{4}\s+\d+\.?\d*\s+[CP]$'
     return bool(re.match(pattern, symbol))
 
+def get_underlying_ticker(symbol):
+    """Extract underlying ticker from symbol (for options) or return symbol itself (for stocks)"""
+    if is_option_symbol(symbol):
+        parsed = parse_option_symbol(symbol)
+        if parsed:
+            return parsed[0]  # Return the underlying ticker
+    return symbol  # For stocks, return the symbol itself
+
 def parse_option_symbol(symbol):
     """Parse option symbol format: TICKER MM/DD/YYYY STRIKE C/P
     Returns: (underlying_ticker, expiration_date, strike_price, option_type) or None
@@ -201,6 +209,9 @@ if uploaded_file is not None:
                     df = df[df['Current Price'].notna()]
                     df['Current Value'] = df['Shares'] * df['Current Price']
                     
+                    # Add underlying ticker column for grouping options with stocks
+                    df['Underlying Ticker'] = df['Symbol'].apply(get_underlying_ticker)
+                    
                     # Calculate total portfolio value
                     total_value = df['Current Value'].sum()
                     
@@ -219,11 +230,13 @@ if uploaded_file is not None:
                     # Create pie chart
                     st.subheader("📈 Portfolio Distribution")
                     
-                    # Prepare data for pie chart
-                    pie_data = df.groupby('Symbol').agg({
-                        'Current Value': 'sum',
-                        'Percentage': 'sum'
+                    # Prepare data for pie chart - group by underlying ticker
+                    pie_data = df.groupby('Underlying Ticker').agg({
+                        'Current Value': 'sum'
                     }).reset_index()
+                    pie_data = pie_data.rename(columns={'Underlying Ticker': 'Symbol'})
+                    # Recalculate percentages after grouping
+                    pie_data['Percentage'] = (pie_data['Current Value'] / total_value * 100).round(2)
                     pie_data = pie_data.sort_values('Current Value', ascending=False)
                     
                     # Create pie chart using Plotly
