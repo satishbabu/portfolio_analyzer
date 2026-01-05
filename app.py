@@ -124,7 +124,10 @@ def fetch_price(symbol):
                 else:
                     return None, f"Option {symbol} has no price data available"
             
-            return float(price), None
+            # Options contracts represent 100 shares, so multiply price by 100
+            price = float(price) * 100
+            
+            return price, None
             
         except Exception as e:
             return None, f"Error fetching option {symbol}: {str(e)}"
