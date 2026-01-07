@@ -112,13 +112,14 @@ HOLDINGS DETAILS:
             return "Error: OpenAI API key not configured. Please set OPENAI_API_KEY in a .env file, environment variable, or Streamlit secrets."
         
         # Build the prompt
-        system_prompt = """You are an expert financial analyst specializing in portfolio analysis, risk assessment, and investment strategy. 
+        system_prompt = """You are an expert stock analyst specializing in stock and options portfolio analysis, risk assessment, and investment strategy. 
 Analyze the provided portfolio data and provide insightful, actionable recommendations. Consider:
 - Portfolio diversification and concentration risk
 - Sector exposure and market correlation
 - Risk-return characteristics
 - Potential improvements or concerns
 - Overall portfolio health and balance
+- Identify ETFs and look through the holdings of the ETF for diversification and concentration risk
 
 Be specific, data-driven, and professional in your analysis."""
         
@@ -142,13 +143,14 @@ Please provide a comprehensive analysis of this portfolio, including:
         try:
             # Use OpenAI ChatCompletion API
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-5-mini",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
                 ],
-                temperature=0.7,
-                max_tokens=1500
+                reasoning_effort="minimal",  # Options: "minimal", "medium", "maximum"
+                verbosity="low",           # Options: "low", "medium", "high"
+                max_completion_tokens=2500
             )
             
             return response.choices[0].message.content.strip()
