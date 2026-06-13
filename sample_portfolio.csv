@@ -1,6 +1,6 @@
-Account,Symbol,Shares
-Brokerage,AAPL,10
-Brokerage,GOOGL,5
-Brokerage,MSFT,15
-IRA,TSLA,20
-Brokerage,AMZN,8
+AccountType,Account,Symbol,Shares
+Taxable,Brokerage,AAPL,10
+Taxable,Brokerage,GOOGL,5
+Taxable,Brokerage,MSFT,15
+Tax-Deferred,IRA,TSLA,20
+Taxable,Brokerage,AMZN,8

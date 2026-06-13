@@ -16,6 +16,7 @@ st.markdown("Upload your portfolio CSV file to analyze your investments (stocks 
 
 # Initialize interfaces
 yahoo = YahooInterface()
+ALLOWED_ACCOUNT_TYPES = ['Tax-Deferred', 'Tax-Exempt', 'Taxable']
 
 # Initialize session state
 if 'portfolio_data' not in st.session_state:
@@ -27,7 +28,7 @@ if 'chat_history' not in st.session_state:
 uploaded_file = st.file_uploader(
     "Choose a CSV file",
     type=['csv'],
-    help="CSV should contain columns: 'Account', 'Symbol' (stock ticker or option in format 'TICKER MM/DD/YYYY STRIKE C/P'), and 'Shares' (number of shares)"
+    help="CSV should contain columns: 'AccountType' (Tax-Deferred, Tax-Exempt, or Taxable), 'Account', 'Symbol' (stock ticker or option in format 'TICKER MM/DD/YYYY STRIKE C/P'), and 'Shares' (number of shares)"
 )
 
 def process_portfolio(uploaded_file):
@@ -37,20 +38,29 @@ def process_portfolio(uploaded_file):
         df = pd.read_csv(uploaded_file)
         
         # Validate required columns
-        required_columns = ['Account', 'Symbol', 'Shares']
+        required_columns = ['AccountType', 'Account', 'Symbol', 'Shares']
         missing_columns = [col for col in required_columns if col not in df.columns]
         
         if missing_columns:
             st.error(f"❌ Missing required columns: {', '.join(missing_columns)}")
-            st.info("Please ensure your CSV has 'Account', 'Symbol', and 'Shares' columns")
+            st.info("Please ensure your CSV has 'AccountType', 'Account', 'Symbol', and 'Shares' columns")
             return None
         
         # Clean data
-        df = df.dropna(subset=['Account', 'Symbol', 'Shares'])
+        df = df.dropna(subset=['AccountType', 'Account', 'Symbol', 'Shares'])
+        df['AccountType'] = df['AccountType'].astype(str).str.strip()
         df['Account'] = df['Account'].astype(str).str.strip()
         df['Symbol'] = df['Symbol'].str.upper().str.strip()
         df['Shares'] = pd.to_numeric(df['Shares'], errors='coerce')
         df = df.dropna(subset=['Shares'])
+        
+        invalid_account_types = df[~df['AccountType'].isin(ALLOWED_ACCOUNT_TYPES)]['AccountType'].unique()
+        if len(invalid_account_types) > 0:
+            st.error(
+                f"❌ Invalid AccountType value(s): {', '.join(invalid_account_types)}. "
+                f"Allowed values: {', '.join(ALLOWED_ACCOUNT_TYPES)}"
+            )
+            return None
         
         if len(df) == 0:
             st.error("❌ No valid data found after cleaning")
@@ -218,24 +228,62 @@ def display_portfolio_analysis(portfolio_data):
     
     account_fig.update_layout(
         height=600,
-        showlegend=True,
-        legend=dict(
-            orientation="v",
-            yanchor="middle",
-            y=0.5,
-            xanchor="left",
-            x=1.05
-        )
+        showlegend=False
     )
-    
-    st.plotly_chart(account_fig, use_container_width=True)
     
     account_display_df = account_pie_data[['Account', 'Current Value', 'Percentage']].copy()
     account_display_df.columns = ['Account', 'Value', 'Percentage']
     account_display_df['Value'] = account_display_df['Value'].apply(lambda x: f"${x:,.2f}")
     account_display_df['Percentage'] = account_display_df['Percentage'].apply(lambda x: f"{x:.2f}%")
     
-    st.dataframe(account_display_df, use_container_width=True, hide_index=True)
+    chart_col, table_col = st.columns([1.2, 0.8])
+    with chart_col:
+        st.plotly_chart(account_fig, use_container_width=True)
+    with table_col:
+        st.dataframe(account_display_df, use_container_width=True, hide_index=True)
+    
+    # AccountType distribution pie chart
+    st.subheader("📂 Portfolio Distribution by AccountType")
+    
+    account_type_pie_data = df.groupby('AccountType').agg({
+        'Current Value': 'sum'
+    }).reset_index()
+    account_type_pie_data['Percentage'] = (account_type_pie_data['Current Value'] / total_value * 100).round(2)
+    account_type_pie_data = account_type_pie_data.sort_values('Current Value', ascending=False)
+    
+    account_type_fig = px.pie(
+        account_type_pie_data,
+        values='Current Value',
+        names='AccountType',
+        title='Portfolio Distribution by AccountType',
+        hover_data=['Percentage'],
+        labels={'Percentage': 'Percentage (%)'}
+    )
+    
+    account_type_fig.update_traces(
+        textposition='inside',
+        textinfo='percent+label',
+        hovertemplate='<b>%{label}</b><br>' +
+                    'Value: $%{value:,.2f}<br>' +
+                    'Percentage: %{customdata[0]:.2f}%<br>' +
+                    '<extra></extra>'
+    )
+    
+    account_type_fig.update_layout(
+        height=600,
+        showlegend=False
+    )
+    
+    account_type_display_df = account_type_pie_data[['AccountType', 'Current Value', 'Percentage']].copy()
+    account_type_display_df.columns = ['AccountType', 'Value', 'Percentage']
+    account_type_display_df['Value'] = account_type_display_df['Value'].apply(lambda x: f"${x:,.2f}")
+    account_type_display_df['Percentage'] = account_type_display_df['Percentage'].apply(lambda x: f"{x:.2f}%")
+    
+    type_chart_col, type_table_col = st.columns([1.2, 0.8])
+    with type_chart_col:
+        st.plotly_chart(account_type_fig, use_container_width=True)
+    with type_table_col:
+        st.dataframe(account_type_display_df, use_container_width=True, hide_index=True)
     
     # Download option
     csv = df.to_csv(index=False)
@@ -357,6 +405,7 @@ else:
     
     st.subheader("📝 Expected CSV Format")
     sample_data = {
+        'AccountType': ['Taxable', 'Taxable', 'Taxable', 'Tax-Deferred', 'Taxable', 'Taxable'],
         'Account': ['Brokerage', 'Brokerage', 'Brokerage', 'IRA', 'Brokerage', 'Brokerage'],
         'Symbol': ['AAPL', 'GOOGL', 'MSFT', 'TSLA', 'AMZN', 'QQQ 01/15/2027 380.00 C'],
         'Shares': [10, 5, 15, 20, 8, 5]

@@ -45,7 +45,8 @@ streamlit run app.py
 2. The application will open in your default web browser (usually at `http://localhost:8501`)
 
 3. Upload a CSV file with your portfolio data. The CSV should have the following format:
-   - **Account**: Account name or identifier (accepted on import; not used in analysis)
+   - **AccountType**: One of `Tax-Deferred`, `Tax-Exempt`, or `Taxable`
+   - **Account**: Account name or identifier
    - **Symbol**: Stock ticker symbol (e.g., AAPL, GOOGL, MSFT)
    - **Shares**: Number of shares owned
 
@@ -60,12 +61,12 @@ streamlit run app.py
 Your CSV file should look like this:
 
 ```csv
-Account,Symbol,Shares
-Brokerage,AAPL,10
-Brokerage,GOOGL,5
-Brokerage,MSFT,15
-IRA,TSLA,20
-Brokerage,AMZN,8
+AccountType,Account,Symbol,Shares
+Taxable,Brokerage,AAPL,10
+Taxable,Brokerage,GOOGL,5
+Taxable,Brokerage,MSFT,15
+Tax-Deferred,IRA,TSLA,20
+Taxable,Brokerage,AMZN,8
 ```
 
 A sample CSV file (`sample_portfolio.csv`) is included in this repository for reference.
